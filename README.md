@@ -1,7 +1,7 @@
 # Specification-Adherence Eval for Multi-Agent LLM Systems
 
 A small, reproducible harness for testing whether **role-conditioned LLM agents
-stay within their specified roles** — especially in the high-stakes moments where
+stay within their specified roles**, especially in the high-stakes moments where
 staying in role matters most.
 
 ## Motivation
