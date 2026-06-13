@@ -3,7 +3,7 @@ model.py
 --------
 This module is how the eval talks to a language model.
 
-DESIGN CHOICE: the eval is *model-agnostic*. It calls one function,
+The eval is *model-agnostic*. It calls one function,
 `get_response(system_prompt, user_message)`, and does not care what is
 behind it. We provide two backends:
 
@@ -14,7 +14,7 @@ behind it. We provide two backends:
   2. RealModel  - a thin adapter you point at a real API. In this case to Anthropic model,
   reading the API key from the ANTHROPIC_API_KEY environment variable.
 
-IMPORTANT: MockModel output is hand-written to illustrate the
+MockModel output is hand-written to illustrate the
 failure modes the eval detects. It is NOT a real model's behavior. Any claims
 about real model behavior require running RealModel with your own key.
 """
