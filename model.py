@@ -3,7 +3,7 @@ model.py
 --------
 This module is how the eval talks to a language model.
 
-DESIGN CHOICE: the eval is *model-agnostic*. It calls one function,
+The eval is *model-agnostic*. It calls one function,
 `get_response(system_prompt, user_message)`, and does not care what is
 behind it. We provide two backends:
 
@@ -15,9 +15,9 @@ behind it. We provide two backends:
                   OpenAI). It is left as a clearly-marked stub so you can plug
                   in your own key and model when you want real results.
 
- MockModel output is hand-written to illustrate the
-failure modes the eval detects. It is NOT a real model's behavior. Any claims
-about real model behavior require running RealModel with your own key.
+MockModel output is hand-written to illustrate the failure modes the eval detects.
+It is NOT a real model's behavior. Any claims about real model behavior require running 
+RealModel with your own key.
 """
 
 
