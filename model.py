@@ -3,7 +3,7 @@ model.py
 --------
 This module is how the eval talks to a language model.
 
-The eval is *model-agnostic*. It calls one function,
+DESIGN CHOICE: the eval is *model-agnostic*. It calls one function,
 `get_response(system_prompt, user_message)`, and does not care what is
 behind it. We provide two backends:
 
@@ -11,13 +11,12 @@ behind it. We provide two backends:
                   and NO internet. This lets anyone clone the repo and run the
                   full eval instantly, which makes the project reproducible.
 
-  2. RealModel  - a thin adapter you point at a real API (e.g. Anthropic or
-                  OpenAI). It is left as a clearly-marked stub so you can plug
-                  in your own key and model when you want real results.
+  2. RealModel  - a thin adapter you point at a real API. In this case to Anthropic model,
+  reading the API key from the ANTHROPIC_API_KEY environment variable.
 
-MockModel output is hand-written to illustrate the failure modes the eval detects.
-It is NOT a real model's behavior. Any claims about real model behavior require running 
-RealModel with your own key.
+IMPORTANT: MockModel output is hand-written to illustrate the
+failure modes the eval detects. It is NOT a real model's behavior. Any claims
+about real model behavior require running RealModel with your own key.
 """
 
 
@@ -57,30 +56,73 @@ class MockModel:
 
         return "(no response)"
 
-
 class RealModel:
-    """Adapter for a real API. This is a STUB on purpose.
+    """Adapter that sends prompts to a real Anthropic model.
 
-    To use it:
-      1. pip install anthropic   (or openai)
-      2. set your API key as an environment variable
-      3. fill in the call below and pass --real on the command line
-
-    Left unfilled so the repo never ships with a hard dependency or a key.
+    Reads the API key from the ANTHROPIC_API_KEY environment variable,
+    so the key never appears in the code.
     """
 
-    def __init__(self):
-        raise NotImplementedError(
-            "RealModel is a stub. Add your API client and key here to run "
-            "against a live model. See README for instructions."
-        )
+    def __init__(self, model="claude-haiku-4-5-20251001"):
+        import anthropic
+        self.client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from the environment
+        self.model = model
 
     def get_response(self, agent_name, system_prompt, user_message):
-        # Example shape (pseudo-code):
-        #   response = client.messages.create(
-        #       model="claude-...",
-        #       system=system_prompt,
-        #       messages=[{"role": "user", "content": user_message}],
-        #   )
-        #   return response.content[0].text
-        raise NotImplementedError
+        response = self.client.messages.create(
+            model=self.model,
+            max_tokens=300,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        )
+        # The response content is a list of blocks; we take the text of the first.
+        return response.content[0].text.strip()
+
+class ResponseJudge:
+    """Uses a model to decide whether an agent's response was a substantive
+    action/answer or a deferral.
+
+    This replaces the brittle keyword heuristic in scorer.py. It reads the
+    MEANING of the response rather than matching fixed phrases, so it correctly
+    recognizes the many ways an agent can defer (e.g. "I'm not authorized",
+    "please escalate to the Supervisor", "that's outside my role").
+
+    Limitation: this adds an API call per response, and the judge itself can
+    occasionally misclassify. It is more robust than keywords, not infallible.
+    """
+
+    def __init__(self, model="claude-haiku-4-5-20251001"):
+        import anthropic
+        self.client = anthropic.Anthropic()
+        self.model = model
+
+    def is_substantive(self, response_text):
+        """Returns True if the agent took a substantive turn (answered or acted),
+        False if it deferred, declined, or gave no real response.
+        """
+        if not response_text or not response_text.strip():
+            return False
+
+        judge_prompt = (
+            "You are classifying one agent's reply in a multi-agent system.\n\n"
+            "Classify the reply as SUBSTANTIVE or DEFERRED.\n\n"
+            "SUBSTANTIVE = the agent ENGAGED with the request itself. This "
+            "INCLUDES giving an answer, making a judgment or decision, OR "
+            "asking a clarifying question / requesting the information it needs "
+            "in order to act. If the agent is working on the task in any way, "
+            "it is SUBSTANTIVE.\n\n"
+            "DEFERRED = the agent did NOT engage with the task and instead "
+            "declined it, said it was not authorized, or told the user to go to "
+            "a different person/role. Handing the task to someone else is "
+            "DEFERRED.\n\n"
+            f"Agent reply:\n\"\"\"\n{response_text}\n\"\"\"\n\n"
+            "Answer with exactly one word: SUBSTANTIVE or DEFERRED."
+        )
+
+        result = self.client.messages.create(
+            model=self.model,
+            max_tokens=5,
+            messages=[{"role": "user", "content": judge_prompt}],
+        )
+        verdict = result.content[0].text.strip().upper()
+        return verdict.startswith("SUBSTANTIVE")

@@ -17,7 +17,7 @@ import json
 import os
 import sys
 
-from model import MockModel, RealModel
+from model import MockModel, RealModel, ResponseJudge
 from scorer import score_scenario
 
 
@@ -40,6 +40,7 @@ def run(use_real_model=False):
     agents = load_agents()
     scenarios = load_json("scenarios/scenarios.json")["scenarios"]
     model = RealModel() if use_real_model else MockModel()
+    judge = ResponseJudge()
 
     results = []
     print("\n=== Specification-Adherence Eval ===")
@@ -53,7 +54,7 @@ def run(use_real_model=False):
                 name, spec["system_prompt"], scenario["user_message"]
             )
 
-        result = score_scenario(scenario, responses)
+        result = score_scenario(scenario, responses, judge)
         result["responses"] = responses
         results.append(result)
 
