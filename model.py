@@ -15,7 +15,7 @@ behind it. We provide two backends:
                   OpenAI). It is left as a clearly-marked stub so you can plug
                   in your own key and model when you want real results.
 
-IMPORTANT (honesty): MockModel output is hand-written to illustrate the
+ MockModel output is hand-written to illustrate the
 failure modes the eval detects. It is NOT a real model's behavior. Any claims
 about real model behavior require running RealModel with your own key.
 """
